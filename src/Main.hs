@@ -23,6 +23,13 @@ screenHeight = 480
 screenBpp :: Int
 screenBpp = 32
 
+paddleSize :: Num a => (a, a)
+paddleSize = (60, 10)
+paddleSizeX :: Num a => a
+paddleSizeX = fst paddleSize
+paddleSizeY :: Num a => a
+paddleSizeY = snd paddleSize
+
 squareWidth :: Int
 squareWidth = 20
 squareHeight :: Int
@@ -39,13 +46,9 @@ defaultSquare :: Square
 defaultSquare = Square { pos=(0,0), vel=(0,0) }
 
 handleInput :: Event -> Square -> Square
-handleInput (KeyDown (Keysym SDLK_UP _ _)) dot_@Square { vel=(dx,dy) }    = dot_ { vel=(dx, dy - halfSquareHeight) }
-handleInput (KeyDown (Keysym SDLK_DOWN _ _)) dot_@Square { vel=(dx,dy) }  = dot_ { vel=(dx, dy + halfSquareHeight) }
 handleInput (KeyDown (Keysym SDLK_LEFT _ _)) dot_@Square { vel=(dx,dy) }  = dot_ { vel=(dx - halfSquareWidth, dy) }
 handleInput (KeyDown (Keysym SDLK_RIGHT _ _)) dot_@Square { vel=(dx,dy) } = dot_ { vel=(dx + halfSquareWidth, dy) }
 
-handleInput (KeyUp (Keysym SDLK_UP _ _)) dot_@Square { vel=(dx,dy) }    = dot_ { vel=(dx, dy + halfSquareHeight) }
-handleInput (KeyUp (Keysym SDLK_DOWN _ _)) dot_@Square { vel=(dx,dy) }  = dot_ { vel=(dx, dy - halfSquareHeight) }
 handleInput (KeyUp (Keysym SDLK_LEFT _ _)) dot_@Square { vel=(dx,dy) }  = dot_ { vel=(dx + halfSquareWidth, dy) }
 handleInput (KeyUp (Keysym SDLK_RIGHT _ _)) dot_@Square { vel=(dx,dy) } = dot_ { vel=(dx - halfSquareWidth, dy) }
 
@@ -118,8 +121,11 @@ initEnv = do
 
 showSquare :: Square -> IO ()
 showSquare Square { pos=(x,y) } = do
+
     -- Move to offset
     Gl.translate $ Gl.Vector3 (fromIntegral x :: Gl.GLfloat)  (fromIntegral y) 0
+    Gl.translate $ Gl.Vector3 (0 :: Gl.GLfloat) 420 0
+
     -- Start quad
     Gl.renderPrimitive Gl.Quads $ do
         -- Set color to white
@@ -127,14 +133,11 @@ showSquare Square { pos=(x,y) } = do
 
         -- Draw square
         Gl.vertex $ Gl.Vertex3 (0 :: Gl.GLfloat) 0 0
-        Gl.vertex $ Gl.Vertex3 screenWidth' 0 0
-        Gl.vertex $ Gl.Vertex3 screenWidth' screenHeight' 0
-        Gl.vertex $ Gl.Vertex3 0 screenHeight' 0
+        Gl.vertex $ Gl.Vertex3 (paddleSizeX :: Gl.GLfloat) 0 0
+        Gl.vertex $ Gl.Vertex3 (paddleSizeX :: Gl.GLfloat) paddleSizeY 0
+        Gl.vertex $ Gl.Vertex3 (0 :: Gl.GLfloat) paddleSizeY 0
 
     Gl.loadIdentity
- where  screenWidth', screenHeight' :: Gl.GLfloat
-        screenWidth'  = fromIntegral screenWidth
-        screenHeight' = fromIntegral screenHeight
 
 loop :: AppEnv ()
 loop = do
