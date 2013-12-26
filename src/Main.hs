@@ -16,10 +16,13 @@ import qualified Graphics.Rendering.OpenGL as Gl
 import           Graphics.Rendering.OpenGL ( ($=) )
 
 import qualified Ball as B
-import           Ball ( Ball(..) )
-import qualified Paddle as P
+import qualified Paddle as Pd
 import           Paddle ( Paddle(..) )
+import           Plane ( fromTuples )
 import           Timer ( Timer, start, defaultTimer, getTimerTicks )
+
+import Data.Vect.Float ( Vec2(..) )
+import Data.Vect.Float.Instances () -- For Num Vec2
 
 screenWidth :: Int
 screenWidth = 640
@@ -28,28 +31,28 @@ screenHeight = 480
 screenBpp :: Int
 screenBpp = 32
 
-paddleWidth :: Int
+paddleWidth :: Fractional a => a
 paddleWidth = 20
-paddleHeight :: Int
+paddleHeight :: Fractional a => a
 paddleHeight = 20
 
-halfPaddleWidth :: Int
-halfPaddleWidth = paddleWidth `div` 2
-halfPaddleHeight :: Int
-halfPaddleHeight = paddleHeight `div` 2
+halfPaddleWidth :: Fractional a => a
+halfPaddleWidth = paddleWidth / 2
+halfPaddleHeight :: Fractional a => a
+halfPaddleHeight = paddleHeight / 2
  
 handleInput :: Event -> Paddle -> Paddle
-handleInput (KeyDown (Keysym SDLK_LEFT _ _)) dot_@Paddle { P.vel=(dx,dy) }  = dot_ { P.vel=(dx - halfPaddleWidth, dy) }
-handleInput (KeyDown (Keysym SDLK_RIGHT _ _)) dot_@Paddle { P.vel=(dx,dy) } = dot_ { P.vel=(dx + halfPaddleWidth, dy) }
+handleInput (KeyDown (Keysym SDLK_LEFT _ _)) pd@Paddle { Pd.vel=v }  = pd { Pd.vel=v - (Vec2 halfPaddleWidth 0) }
+handleInput (KeyDown (Keysym SDLK_RIGHT _ _)) pd@Paddle { Pd.vel=v } = pd { Pd.vel=v + (Vec2 halfPaddleWidth 0) }
 
-handleInput (KeyUp (Keysym SDLK_LEFT _ _)) dot_@Paddle { P.vel=(dx,dy) }  = dot_ { P.vel=(dx + halfPaddleWidth, dy) }
-handleInput (KeyUp (Keysym SDLK_RIGHT _ _)) dot_@Paddle { P.vel=(dx,dy) } = dot_ { P.vel=(dx - halfPaddleWidth, dy) }
+handleInput (KeyUp (Keysym SDLK_LEFT _ _)) pd = pd { Pd.vel=Vec2 0 0 }
+handleInput (KeyUp (Keysym SDLK_RIGHT _ _)) pd = pd { Pd.vel=Vec2 0 0 }
 
 handleInput _ d = d
 
 data AppData = AppData {
     paddle :: Paddle,
-    ball :: Ball,
+    ball :: B.Ball,
     fps :: Timer
 }
 
@@ -72,19 +75,19 @@ modifyFPSM act = getFPS >>= act >>= putFPS
 getPaddle :: MonadState AppData m => m Paddle
 getPaddle = liftM paddle get
 
-getBall :: MonadState AppData m => m Ball
+getBall :: MonadState AppData m => m B.Ball
 getBall = liftM ball get
 
 putPaddle :: MonadState AppData m => Paddle -> m ()
 putPaddle t = modify $ \s -> s { paddle = t }
 
-putBall :: MonadState AppData m => Ball -> m ()
+putBall :: MonadState AppData m => B.Ball -> m ()
 putBall t = modify $ \s -> s { ball = t }
 
 modifyPaddle :: MonadState AppData m => (Paddle -> Paddle) -> m ()
 modifyPaddle fn = fn `liftM` getPaddle >>= putPaddle
 
-modifyBall :: MonadState AppData m => (Ball -> Ball) -> m ()
+modifyBall :: MonadState AppData m => (B.Ball -> B.Ball) -> m ()
 modifyBall fn = fn `liftM` getBall >>= putBall
 
 getScreen :: MonadReader AppConfig m => m Sdl.Surface
@@ -112,11 +115,15 @@ initEnv = do
     return (AppConfig screen_, AppData { paddle=def, ball=def, fps=fps_ }) 
 
 
-showBall :: Ball -> IO ()
-showBall Ball { pos=(x,y) } = do
+showBall :: B.Ball -> IO ()
+showBall b = do
+
+    let x = B.posX b
+        y = B.posY b
 
     -- Move to offset
-    Gl.translate $ Gl.Vector3 (fromIntegral x :: Gl.GLfloat)  (fromIntegral y) 0
+    -- Gl.translate $ Gl.Vector3 (x :: Gl.GLfloat) y 0
+    Gl.translate $ Gl.Vector3 (realToFrac x :: Gl.GLfloat) (realToFrac y) 0
 
     -- Start ball
     Gl.renderPrimitive Gl.Quads $ do
@@ -133,11 +140,10 @@ showBall Ball { pos=(x,y) } = do
     Gl.loadIdentity
 
 showPaddle :: Paddle -> IO ()
-showPaddle Paddle { pos=(x,y) } = do
+showPaddle Paddle { pos=Vec2 x y } = do
 
     -- Move to offset
-    Gl.translate $ Gl.Vector3 (fromIntegral x :: Gl.GLfloat)  (fromIntegral y) 0
-    Gl.translate $ Gl.Vector3 (0 :: Gl.GLfloat) 420 0
+    Gl.translate $ Gl.Vector3 (realToFrac x :: Gl.GLfloat) (realToFrac y) 0
 
     -- Start paddle
     Gl.renderPrimitive Gl.Quads $ do
@@ -147,9 +153,9 @@ showPaddle Paddle { pos=(x,y) } = do
 
         -- Draw paddle
         Gl.vertex $ Gl.Vertex3 (0 :: Gl.GLfloat) 0 0
-        Gl.vertex $ Gl.Vertex3 (P.sizeX :: Gl.GLfloat) 0 0
-        Gl.vertex $ Gl.Vertex3 (P.sizeX :: Gl.GLfloat) P.sizeY 0
-        Gl.vertex $ Gl.Vertex3 (0 :: Gl.GLfloat) P.sizeY 0
+        Gl.vertex $ Gl.Vertex3 (Pd.sizeX :: Gl.GLfloat) 0 0
+        Gl.vertex $ Gl.Vertex3 (Pd.sizeX :: Gl.GLfloat) Pd.sizeY 0
+        Gl.vertex $ Gl.Vertex3 (0 :: Gl.GLfloat) Pd.sizeY 0
 
     Gl.loadIdentity
 
@@ -159,13 +165,22 @@ loop = do
     modifyFPSM $ liftIO . start
     quit_ <- whileEvents $ modifyPaddle . handleInput
 
-    modifyPaddle $ P.move screenWidth screenHeight
+    modifyPaddle $ Pd.move screenWidth screenHeight
 
     modifyBall B.move
+
+    -- Collide with walls
+    modifyBall $ B.collide $ fromTuples (20,20) (1,0)
+    modifyBall $ B.collide $ fromTuples (20,20) (0,1)
+    modifyBall $ B.collide $ fromTuples (fromIntegral screenWidth - 20,20) (-1,0)
+    modifyBall $ B.collide $ fromTuples (20,fromIntegral screenHeight - 20) (0,-1)
 
     fps_   <- getFPS
     paddle_ <- getPaddle
     ball_   <- getBall
+
+    -- Collide with paddle
+    modifyBall $ B.bat paddle_
 
     liftIO $ do
         Gl.clear [Gl.ColorBuffer]

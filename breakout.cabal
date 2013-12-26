@@ -8,10 +8,18 @@ library
   exposed-modules: Timer
                  , Paddle
                  , Ball
+                 , Plane
   hs-source-dirs: src
   build-depends: base >= 4 && < 5
                , SDL == 0.6.5
                , data-default == 0.5.3
+               , SDL == 0.6.5
+               , SDL-image == 0.6.1
+               , OpenGL == 2.9.1.0
+               , mtl == 2.1.2
+               , transformers == 0.3.0.0
+               , data-default == 0.5.3
+               , vect == 0.4.7
 
 executable breakout
     main-is: src/Main.hs
@@ -22,6 +30,7 @@ executable breakout
                  , mtl == 2.1.2
                  , transformers == 0.3.0.0
                  , data-default == 0.5.3
+                 , vect == 0.4.7
                  , breakout
     ghc-options: -Wall -Werror
 
