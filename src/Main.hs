@@ -1,12 +1,13 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, DisambiguateRecordFields #-}
 
 module Main where
 
-import Data.Word ()
 import Control.Monad ( liftM, unless, when )
 import Control.Monad.IO.Class ( liftIO, MonadIO )
 import Control.Monad.State ( StateT, MonadState, modify, evalStateT, get )
 import Control.Monad.Reader ( ReaderT, MonadReader, ask, runReaderT )
+
+import           Data.Default ( def )
 
 import qualified Graphics.UI.SDL as Sdl
 import           Graphics.UI.SDL ( Event(..), Keysym(..), SDLKey(..) )
@@ -14,6 +15,10 @@ import           Graphics.UI.SDL ( Event(..), Keysym(..), SDLKey(..) )
 import qualified Graphics.Rendering.OpenGL as Gl
 import           Graphics.Rendering.OpenGL ( ($=) )
 
+import qualified Ball as B
+import           Ball ( Ball(..) )
+import qualified Paddle as P
+import           Paddle ( Paddle(..) )
 import           Timer ( Timer, start, defaultTimer, getTimerTicks )
 
 screenWidth :: Int
@@ -23,47 +28,28 @@ screenHeight = 480
 screenBpp :: Int
 screenBpp = 32
 
-paddleSize :: Num a => (a, a)
-paddleSize = (60, 10)
-paddleSizeX :: Num a => a
-paddleSizeX = fst paddleSize
-paddleSizeY :: Num a => a
-paddleSizeY = snd paddleSize
+paddleWidth :: Int
+paddleWidth = 20
+paddleHeight :: Int
+paddleHeight = 20
 
-squareWidth :: Int
-squareWidth = 20
-squareHeight :: Int
-squareHeight = 20
-
-halfSquareWidth :: Int
-halfSquareWidth = squareWidth `div` 2
-halfSquareHeight :: Int
-halfSquareHeight = squareHeight `div` 2
+halfPaddleWidth :: Int
+halfPaddleWidth = paddleWidth `div` 2
+halfPaddleHeight :: Int
+halfPaddleHeight = paddleHeight `div` 2
  
-data Square = Square { pos :: (Int, Int), vel :: (Int, Int) }
+handleInput :: Event -> Paddle -> Paddle
+handleInput (KeyDown (Keysym SDLK_LEFT _ _)) dot_@Paddle { P.vel=(dx,dy) }  = dot_ { P.vel=(dx - halfPaddleWidth, dy) }
+handleInput (KeyDown (Keysym SDLK_RIGHT _ _)) dot_@Paddle { P.vel=(dx,dy) } = dot_ { P.vel=(dx + halfPaddleWidth, dy) }
 
-defaultSquare :: Square
-defaultSquare = Square { pos=(0,0), vel=(0,0) }
-
-handleInput :: Event -> Square -> Square
-handleInput (KeyDown (Keysym SDLK_LEFT _ _)) dot_@Square { vel=(dx,dy) }  = dot_ { vel=(dx - halfSquareWidth, dy) }
-handleInput (KeyDown (Keysym SDLK_RIGHT _ _)) dot_@Square { vel=(dx,dy) } = dot_ { vel=(dx + halfSquareWidth, dy) }
-
-handleInput (KeyUp (Keysym SDLK_LEFT _ _)) dot_@Square { vel=(dx,dy) }  = dot_ { vel=(dx + halfSquareWidth, dy) }
-handleInput (KeyUp (Keysym SDLK_RIGHT _ _)) dot_@Square { vel=(dx,dy) } = dot_ { vel=(dx - halfSquareWidth, dy) }
+handleInput (KeyUp (Keysym SDLK_LEFT _ _)) dot_@Paddle { P.vel=(dx,dy) }  = dot_ { P.vel=(dx + halfPaddleWidth, dy) }
+handleInput (KeyUp (Keysym SDLK_RIGHT _ _)) dot_@Paddle { P.vel=(dx,dy) } = dot_ { P.vel=(dx - halfPaddleWidth, dy) }
 
 handleInput _ d = d
 
-move :: Square -> Square
-move dot_@Square { pos=(x,y), vel=(dx,dy) } = dot_ { pos=(x'', y'') } 
- where
-    x'  = x + dx
-    y'  = y + dy
-    x'' = if x' < 0 || (x' + squareWidth) > screenWidth then x else x' 
-    y'' = if y' < 0 || (y' + squareHeight) > screenHeight then y else y'
-
 data AppData = AppData {
-    dot :: Square,
+    paddle :: Paddle,
+    ball :: Ball,
     fps :: Timer
 }
 
@@ -83,17 +69,23 @@ putFPS t = modify $ \s -> s { fps = t }
 modifyFPSM :: MonadState AppData m => (Timer -> m Timer) -> m ()
 modifyFPSM act = getFPS >>= act >>= putFPS
 
-getSquare :: MonadState AppData m => m Square
-getSquare = liftM dot get
+getPaddle :: MonadState AppData m => m Paddle
+getPaddle = liftM paddle get
 
-putSquare :: MonadState AppData m => Square -> m ()
-putSquare t = modify $ \s -> s { dot = t }
+getBall :: MonadState AppData m => m Ball
+getBall = liftM ball get
 
-modifySquareM :: MonadState AppData m => (Square -> m Square) -> m ()
-modifySquareM act = getSquare >>= act >>= putSquare
+putPaddle :: MonadState AppData m => Paddle -> m ()
+putPaddle t = modify $ \s -> s { paddle = t }
 
-modifySquare :: MonadState AppData m => (Square -> Square) -> m ()
-modifySquare fn = fn `liftM` getSquare >>= putSquare
+putBall :: MonadState AppData m => Ball -> m ()
+putBall t = modify $ \s -> s { ball = t }
+
+modifyPaddle :: MonadState AppData m => (Paddle -> Paddle) -> m ()
+modifyPaddle fn = fn `liftM` getPaddle >>= putPaddle
+
+modifyBall :: MonadState AppData m => (Ball -> Ball) -> m ()
+modifyBall fn = fn `liftM` getBall >>= putBall
 
 getScreen :: MonadReader AppConfig m => m Sdl.Surface
 getScreen = liftM screen ask
@@ -116,26 +108,48 @@ initEnv = do
 
     initGL
 
-    fps_ <- start defaultTimer    
-    return (AppConfig screen_, AppData defaultSquare fps_) 
+    fps_ <- start defaultTimer
+    return (AppConfig screen_, AppData { paddle=def, ball=def, fps=fps_ }) 
 
-showSquare :: Square -> IO ()
-showSquare Square { pos=(x,y) } = do
+
+showBall :: Ball -> IO ()
+showBall Ball { pos=(x,y) } = do
+
+    -- Move to offset
+    Gl.translate $ Gl.Vector3 (fromIntegral x :: Gl.GLfloat)  (fromIntegral y) 0
+
+    -- Start ball
+    Gl.renderPrimitive Gl.Quads $ do
+
+        -- Set color to white
+        Gl.color $ Gl.Color4 (1 :: Gl.GLfloat) 1 1 1
+
+        -- Draw paddle
+        Gl.vertex $ Gl.Vertex3 (0 :: Gl.GLfloat) 0 0
+        Gl.vertex $ Gl.Vertex3 (B.sizeX :: Gl.GLfloat) 0 0
+        Gl.vertex $ Gl.Vertex3 (B.sizeX :: Gl.GLfloat) B.sizeY 0
+        Gl.vertex $ Gl.Vertex3 (0 :: Gl.GLfloat) B.sizeY 0
+
+    Gl.loadIdentity
+
+showPaddle :: Paddle -> IO ()
+showPaddle Paddle { pos=(x,y) } = do
 
     -- Move to offset
     Gl.translate $ Gl.Vector3 (fromIntegral x :: Gl.GLfloat)  (fromIntegral y) 0
     Gl.translate $ Gl.Vector3 (0 :: Gl.GLfloat) 420 0
 
-    -- Start quad
+    -- Start paddle
     Gl.renderPrimitive Gl.Quads $ do
+
         -- Set color to white
         Gl.color $ Gl.Color4 (1 :: Gl.GLfloat) 1 1 1
 
-        -- Draw square
+        -- Draw paddle
         Gl.vertex $ Gl.Vertex3 (0 :: Gl.GLfloat) 0 0
-        Gl.vertex $ Gl.Vertex3 (paddleSizeX :: Gl.GLfloat) 0 0
-        Gl.vertex $ Gl.Vertex3 (paddleSizeX :: Gl.GLfloat) paddleSizeY 0
-        Gl.vertex $ Gl.Vertex3 (0 :: Gl.GLfloat) paddleSizeY 0
+        Gl.vertex $ Gl.Vertex3 (P.sizeX :: Gl.GLfloat) 0 0
+        Gl.vertex $ Gl.Vertex3 (P.sizeX :: Gl.GLfloat) P.sizeY 0
+        Gl.vertex $ Gl.Vertex3 (0 :: Gl.GLfloat) P.sizeY 0
 
     Gl.loadIdentity
 
@@ -143,17 +157,22 @@ loop :: AppEnv ()
 loop = do
 
     modifyFPSM $ liftIO . start
-    quit_ <- whileEvents $ modifySquare . handleInput
+    quit_ <- whileEvents $ modifyPaddle . handleInput
 
-    modifySquare move
+    modifyPaddle $ P.move screenWidth screenHeight
 
-    fps_     <- getFPS
-    square  <- getSquare
+    modifyBall B.move
+
+    fps_   <- getFPS
+    paddle_ <- getPaddle
+    ball_   <- getBall
 
     liftIO $ do
         Gl.clear [Gl.ColorBuffer]
 
-        showSquare square
+        showPaddle paddle_
+
+        showBall ball_
 
         Sdl.glSwapBuffers
 
