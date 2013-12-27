@@ -23,16 +23,19 @@ sizeX b = _1 . size $ b
 sizeY :: Brick -> Float
 sizeY b = _2 . size $ b
 
-
+-- | Return plane for the top of the paddle
 top :: Brick -> Pl.Plane
 top brick = Pl.Plane (pos brick) $ Vec2 0 (-1)
 
+-- | Return plane for the bottom of the paddle
 bottom :: Brick -> Pl.Plane
 bottom brick = Pl.Plane (pos brick + (Vec2 0 $ sizeY brick)) $ Vec2 0 1
 
+-- | Return plane for the left side of the paddle
 left :: Brick -> Pl.Plane
 left brick = Pl.Plane (pos brick) $ Vec2 (-1) 0
 
+-- | Return plane for the right side of the paddle
 right :: Brick -> Pl.Plane
 right brick = Pl.Plane (pos brick + (Vec2 (sizeX brick) 0)) $ Vec2 1 0
 

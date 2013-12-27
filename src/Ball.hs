@@ -1,6 +1,7 @@
 module Ball
     (
     Ball,
+    Mode(..),
     posX,
     posY,
     sizeX,
@@ -22,6 +23,9 @@ import qualified Brick as Br
 
 data Ball = Ball { pos :: Vec2, vel :: Vec2 }
 
+data Mode = Bound
+          | Free
+
 instance Default Ball where
     def = Ball { pos = Vec2 50 350, vel = Vec2 3 4 }
 
@@ -38,9 +42,13 @@ posX Ball { pos=Vec2 x _ } = x
 posY :: Ball -> Float
 posY Ball { pos=Vec2 _ y } = y
 
-move :: Ball -> Ball
-move ball@Ball { pos=p, vel=v } = ball { pos=p + v }
+{- Handle free & bound motion of the Ball -}
+move :: Mode -> Pd.Paddle -> Ball -> Ball
+move Free _ ball@Ball { pos=p, vel=v } = ball { pos=p + v }
+move Bound paddle ball = ball { pos=(Pd.pos paddle + (Vec2 (0.5 * Pd.sizeX) (-10))) }
 
+{- For collision detection between planes and the ball. Particularly useful for
+   the screen edges -}
 collide :: Pl.Plane -> Ball -> Ball
 collide plane ball =
     if ball `penetrated` plane
@@ -54,6 +62,7 @@ penetrated ball plane = ( relBallPos `dotprod` Pl.normal plane ) < 0
   where
     relBallPos = pos ball - Pl.pos plane
 
+{- Reflect the ball in the plane -}
 reflect :: Ball -> Pl.Plane -> Ball
 reflect ball plane = ball { pos=finalpos, vel=finalvel }
    where
