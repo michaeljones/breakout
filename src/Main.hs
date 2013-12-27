@@ -118,19 +118,21 @@ initEnv :: IO (AppConfig, AppData)
 initEnv = do
     Sdl.glSetAttribute Sdl.glDoubleBuffer 1
     screen_ <- Sdl.setVideoMode screenWidth screenHeight screenBpp [Sdl.OpenGL]
-    Sdl.setCaption "OpenGL Test" []
+    Sdl.setCaption "Breakout" []
 
     initGL
 
     fps_ <- start defaultTimer
 
-    let bricks_ = map createBrick [1..5]
+    let rows = 10
+        columns = 8
+        bricks_ = concat $ flip map [1..rows] $ (\n -> map (createBrick n) [1..columns])
 
     return (AppConfig screen_, AppData { paddle=def, ball=def, bricks=bricks_, fps=fps_ }) 
 
   where
 
-    createBrick n = Br.Brick (Vec2 (150 + 60 * n) 50) (Vec2 50 10)
+    createBrick y n = Br.Brick (Vec2 (20 + 60 * n) (50 + 20 * y)) (Vec2 50 10)
 
 showBricks :: [Br.Brick] -> IO ()
 showBricks bs = forM_ bs $ \b -> do
