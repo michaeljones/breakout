@@ -89,11 +89,17 @@ putPaddle t = modify $ \s -> s { paddle = t }
 putBall :: MonadState AppData m => Ba.Ball -> m ()
 putBall t = modify $ \s -> s { ball = t }
 
+putBricks :: MonadState AppData m => [Br.Brick] -> m ()
+putBricks t = modify $ \s -> s { bricks = t }
+
 modifyPaddle :: MonadState AppData m => (Paddle -> Paddle) -> m ()
 modifyPaddle fn = fn `liftM` getPaddle >>= putPaddle
 
 modifyBall :: MonadState AppData m => (Ba.Ball -> Ba.Ball) -> m ()
 modifyBall fn = fn `liftM` getBall >>= putBall
+
+modifyBricks :: MonadState AppData m => ([Br.Brick] -> [Br.Brick]) -> m ()
+modifyBricks fn = fn `liftM` getBricks >>= putBricks
 
 getScreen :: MonadReader AppConfig m => m Sdl.Surface
 getScreen = liftM screen ask
@@ -118,10 +124,13 @@ initEnv = do
 
     fps_ <- start defaultTimer
 
-    let bricks_ = [Br.Brick (Vec2 150 50) (Vec2 50 10)]
+    let bricks_ = map createBrick [1..5]
 
     return (AppConfig screen_, AppData { paddle=def, ball=def, bricks=bricks_, fps=fps_ }) 
 
+  where
+
+    createBrick n = Br.Brick (Vec2 (150 + 60 * n) 50) (Vec2 50 10)
 
 showBricks :: [Br.Brick] -> IO ()
 showBricks bs = forM_ bs $ \b -> do
@@ -212,20 +221,27 @@ loop = do
 
     fps_   <- getFPS
     paddle_ <- getPaddle
-    ball_   <- getBall
-    bricks_ <- getBricks
 
     -- Collide with paddle
     modifyBall $ Ba.bat paddle_
+
+    ball_   <- getBall
+    bricks_ <- getBricks
+
+    -- Collide with bricks
+    let (bouncedBall, remainingbricks) = Ba.bounce bricks_ ball_
+
+    modifyBall $ const bouncedBall
+    modifyBricks $ const remainingbricks
 
     liftIO $ do
         Gl.clear [Gl.ColorBuffer]
 
         showPaddle paddle_
 
-        showBall ball_
+        showBall bouncedBall
 
-        showBricks bricks_
+        showBricks remainingbricks
 
         Sdl.glSwapBuffers
 
