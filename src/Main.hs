@@ -207,8 +207,13 @@ whileEvents act = do
         Quit -> return True
         NoEvent -> return False
         _       ->  do
+            _ <- handleQuit event
             act event
             whileEvents act
+
+handleQuit :: MonadIO m => Event -> m Bool
+handleQuit (KeyDown (Keysym SDLK_q _ _)) = liftIO $ Sdl.tryPushEvent Quit
+handleQuit _ = return True
 
 runLoop :: AppConfig -> AppData -> IO ()
 runLoop = evalStateT . runReaderT loop
