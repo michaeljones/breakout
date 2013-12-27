@@ -5,10 +5,11 @@ cabal-version:   >= 1.8
 build-type:      Simple
 
 library
-  exposed-modules: Timer
+  exposed-modules: Ball
+                 , Brick
                  , Paddle
-                 , Ball
                  , Plane
+                 , Timer
   hs-source-dirs: src
   build-depends: base >= 4 && < 5
                , SDL == 0.6.5

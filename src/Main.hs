@@ -2,7 +2,7 @@
 
 module Main where
 
-import Control.Monad ( liftM, unless, when )
+import Control.Monad ( liftM, unless, when, forM_ )
 import Control.Monad.IO.Class ( liftIO, MonadIO )
 import Control.Monad.State ( StateT, MonadState, modify, evalStateT, get )
 import Control.Monad.Reader ( ReaderT, MonadReader, ask, runReaderT )
@@ -15,7 +15,8 @@ import           Graphics.UI.SDL ( Event(..), Keysym(..), SDLKey(..) )
 import qualified Graphics.Rendering.OpenGL as Gl
 import           Graphics.Rendering.OpenGL ( ($=) )
 
-import qualified Ball as B
+import qualified Brick as Br
+import qualified Ball as Ba
 import qualified Paddle as Pd
 import           Paddle ( Paddle(..) )
 import           Plane ( fromTuples )
@@ -52,7 +53,8 @@ handleInput _ d = d
 
 data AppData = AppData {
     paddle :: Paddle,
-    ball :: B.Ball,
+    ball :: Ba.Ball,
+    bricks :: [Br.Brick],
     fps :: Timer
 }
 
@@ -75,19 +77,22 @@ modifyFPSM act = getFPS >>= act >>= putFPS
 getPaddle :: MonadState AppData m => m Paddle
 getPaddle = liftM paddle get
 
-getBall :: MonadState AppData m => m B.Ball
+getBall :: MonadState AppData m => m Ba.Ball
 getBall = liftM ball get
+
+getBricks :: MonadState AppData m => m [Br.Brick]
+getBricks = liftM bricks get
 
 putPaddle :: MonadState AppData m => Paddle -> m ()
 putPaddle t = modify $ \s -> s { paddle = t }
 
-putBall :: MonadState AppData m => B.Ball -> m ()
+putBall :: MonadState AppData m => Ba.Ball -> m ()
 putBall t = modify $ \s -> s { ball = t }
 
 modifyPaddle :: MonadState AppData m => (Paddle -> Paddle) -> m ()
 modifyPaddle fn = fn `liftM` getPaddle >>= putPaddle
 
-modifyBall :: MonadState AppData m => (B.Ball -> B.Ball) -> m ()
+modifyBall :: MonadState AppData m => (Ba.Ball -> Ba.Ball) -> m ()
 modifyBall fn = fn `liftM` getBall >>= putBall
 
 getScreen :: MonadReader AppConfig m => m Sdl.Surface
@@ -112,14 +117,19 @@ initEnv = do
     initGL
 
     fps_ <- start defaultTimer
-    return (AppConfig screen_, AppData { paddle=def, ball=def, fps=fps_ }) 
+
+    let bricks_ = [Br.Brick (Vec2 150 50) (Vec2 50 10)]
+
+    return (AppConfig screen_, AppData { paddle=def, ball=def, bricks=bricks_, fps=fps_ }) 
 
 
-showBall :: B.Ball -> IO ()
-showBall b = do
+showBricks :: [Br.Brick] -> IO ()
+showBricks bs = forM_ bs $ \b -> do
 
-    let x = B.posX b
-        y = B.posY b
+    let x = Br.posX b
+        y = Br.posY b
+        sx = Br.sizeX b
+        sy = Br.sizeY b
 
     -- Move to offset
     -- Gl.translate $ Gl.Vector3 (x :: Gl.GLfloat) y 0
@@ -133,9 +143,34 @@ showBall b = do
 
         -- Draw paddle
         Gl.vertex $ Gl.Vertex3 (0 :: Gl.GLfloat) 0 0
-        Gl.vertex $ Gl.Vertex3 (B.sizeX :: Gl.GLfloat) 0 0
-        Gl.vertex $ Gl.Vertex3 (B.sizeX :: Gl.GLfloat) B.sizeY 0
-        Gl.vertex $ Gl.Vertex3 (0 :: Gl.GLfloat) B.sizeY 0
+        Gl.vertex $ Gl.Vertex3 (realToFrac sx :: Gl.GLfloat) 0 0
+        Gl.vertex $ Gl.Vertex3 (realToFrac sx :: Gl.GLfloat) (realToFrac sy) 0
+        Gl.vertex $ Gl.Vertex3 (0 :: Gl.GLfloat) (realToFrac sy) 0
+
+    Gl.loadIdentity
+
+
+showBall :: Ba.Ball -> IO ()
+showBall b = do
+
+    let x = Ba.posX b
+        y = Ba.posY b
+
+    -- Move to offset
+    -- Gl.translate $ Gl.Vector3 (x :: Gl.GLfloat) y 0
+    Gl.translate $ Gl.Vector3 (realToFrac x :: Gl.GLfloat) (realToFrac y) 0
+
+    -- Start ball
+    Gl.renderPrimitive Gl.Quads $ do
+
+        -- Set color to white
+        Gl.color $ Gl.Color4 (1 :: Gl.GLfloat) 1 1 1
+
+        -- Draw paddle
+        Gl.vertex $ Gl.Vertex3 (0 :: Gl.GLfloat) 0 0
+        Gl.vertex $ Gl.Vertex3 (Ba.sizeX :: Gl.GLfloat) 0 0
+        Gl.vertex $ Gl.Vertex3 (Ba.sizeX :: Gl.GLfloat) Ba.sizeY 0
+        Gl.vertex $ Gl.Vertex3 (0 :: Gl.GLfloat) Ba.sizeY 0
 
     Gl.loadIdentity
 
@@ -167,20 +202,21 @@ loop = do
 
     modifyPaddle $ Pd.move screenWidth screenHeight
 
-    modifyBall B.move
+    modifyBall Ba.move
 
     -- Collide with walls
-    modifyBall $ B.collide $ fromTuples (20,20) (1,0)
-    modifyBall $ B.collide $ fromTuples (20,20) (0,1)
-    modifyBall $ B.collide $ fromTuples (fromIntegral screenWidth - 20,20) (-1,0)
-    modifyBall $ B.collide $ fromTuples (20,fromIntegral screenHeight - 20) (0,-1)
+    modifyBall $ Ba.collide $ fromTuples (20,20) (1,0)
+    modifyBall $ Ba.collide $ fromTuples (20,20) (0,1)
+    modifyBall $ Ba.collide $ fromTuples (fromIntegral screenWidth - 20,20) (-1,0)
+    modifyBall $ Ba.collide $ fromTuples (20,fromIntegral screenHeight - 20) (0,-1)
 
     fps_   <- getFPS
     paddle_ <- getPaddle
     ball_   <- getBall
+    bricks_ <- getBricks
 
     -- Collide with paddle
-    modifyBall $ B.bat paddle_
+    modifyBall $ Ba.bat paddle_
 
     liftIO $ do
         Gl.clear [Gl.ColorBuffer]
@@ -189,6 +225,8 @@ loop = do
 
         showBall ball_
 
+        showBricks bricks_
+
         Sdl.glSwapBuffers
 
         ticks <- getTimerTicks fps_
@@ -196,6 +234,7 @@ loop = do
             Sdl.delay $ secsPerFrame - ticks
 
     unless quit_ loop
+
  where
     framesPerSecond = 60
     secsPerFrame    = 1000 `div` framesPerSecond
@@ -211,6 +250,7 @@ whileEvents act = do
             act event
             whileEvents act
 
+-- Event handler for 'q' to quit application
 handleQuit :: MonadIO m => Event -> m Bool
 handleQuit (KeyDown (Keysym SDLK_q _ _)) = liftIO $ Sdl.tryPushEvent Quit
 handleQuit _ = return True
