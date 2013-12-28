@@ -108,7 +108,10 @@ bounce :: [Br.Brick] -> Ball -> (Ball, [Br.Brick])
 bounce bricks ball = 
     case partition (ball `hitBrick`) bricks of
         ([],bs) -> (ball, bs)
-        ((br:_),bs) -> (reflect ball $ Br.bottom br, bs)
+        ((br:_),bs) -> (speedUp 1.01 . reflect ball $ Br.bottom br, bs)
+
+speedUp :: Float -> Ball -> Ball
+speedUp frac ball@Ball { vel=vel' } = ball { vel=frac `scalarMul` vel' }
 
 hitBrick :: Ball -> Br.Brick -> Bool
 hitBrick ball brick =
