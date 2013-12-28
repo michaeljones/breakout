@@ -14,7 +14,7 @@ module Ball
 
 import Data.List ( partition )
 import Data.Default ( Default, def )
-import Data.Vect.Float ( Vec2(..), dotprod, scalarMul )
+import Data.Vect.Float ( Vec2(..), dotprod, scalarMul, _1, len, normalize )
 import Data.Vect.Float.Instances () -- For Num Vec2
 
 import qualified Plane as Pl
@@ -27,7 +27,7 @@ data Mode = Bound
           | Free
 
 instance Default Ball where
-    def = Ball { pos = Vec2 50 350, vel = Vec2 3 4 }
+    def = Ball { pos = Vec2 50 350, vel = Vec2 0 4 }
 
 size :: Num a => (a, a)
 size = (5, 5)
@@ -78,8 +78,24 @@ reflect ball plane = ball { pos=finalpos, vel=finalvel }
 bat :: Pd.Paddle -> Ball -> Ball
 bat paddle ball =
     if ball `hit` paddle
-    then reflect ball $ Pd.top paddle
+    then adjustVelocity (paddlePosition) (paddlePosition + paddleWidth) $ reflect ball top
     else ball
+  where
+    paddlePosition = Pd.pos paddle
+    paddleWidth = Vec2 Pd.sizeX 0
+    top = Pd.top paddle
+
+adjustVelocity :: Vec2 -> Vec2 -> Ball -> Ball
+adjustVelocity left right ball = ball { vel=vel'' }
+  where
+    fraction = (_1 bpos - midpoint) / halfwidth
+    midpoint = (_1 right + _1 left) / 2
+    halfwidth = (_1 right - _1 left) / 2
+    bpos = pos ball
+    bvel = vel ball
+    bmag = len bvel
+    vel' = bvel + ( ( bmag * fraction * 0.6 ) `scalarMul` (Vec2 1 (-1)) )
+    vel'' = bmag `scalarMul` ( normalize vel' )
 
 hit :: Ball -> Pd.Paddle -> Bool
 hit ball paddle = 
