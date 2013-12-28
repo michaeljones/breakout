@@ -221,31 +221,35 @@ loop = do
     modifyFPSM $ liftIO . start
     quit_ <- whileEvents (modifyPaddle . handleInput) (modifyBallMode . handleTrigger)
 
+    -- Check if the ball is out of bounds
+    ball' <- getBall
+    modifyBallMode $ Ba.out ball' $ fromTuples (20,fromIntegral screenHeight - 20) (0,-1)
+
+    -- Update the paddle based on user movement
     modifyPaddle $ Pd.move screenWidth screenHeight
-
     paddle' <- getPaddle
-    mode'   <- getBallMode
 
+    -- Move the ball either by its velocity or to stick with the paddle
+    mode' <- getBallMode
     modifyBall $ Ba.move mode' paddle'
 
     -- Collide with walls
     modifyBall $ Ba.collide $ fromTuples (20,20) (1,0)
     modifyBall $ Ba.collide $ fromTuples (20,20) (0,1)
     modifyBall $ Ba.collide $ fromTuples (fromIntegral screenWidth - 20,20) (-1,0)
-    modifyBall $ Ba.collide $ fromTuples (20,fromIntegral screenHeight - 20) (0,-1)
 
     fps_   <- getFPS
 
     -- Collide with paddle
     modifyBall $ Ba.bat paddle'
 
-    ball'   <- getBall
+    ball''  <- getBall
     bricks_ <- getBricks
 
     -- Collide with bricks
-    let (ball'', bricks') = Ba.bounce bricks_ ball'
+    let (ball''', bricks') = Ba.bounce bricks_ ball''
 
-    modifyBall $ const ball''
+    modifyBall $ const ball'''
     modifyBricks $ const bricks'
 
     liftIO $ do
@@ -253,7 +257,7 @@ loop = do
 
         showPaddle paddle'
 
-        showBall ball''
+        showBall ball'''
 
         showBricks bricks'
 

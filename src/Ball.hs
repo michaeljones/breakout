@@ -1,5 +1,4 @@
-module Ball
-    (
+module Ball (
     Ball,
     Mode(..),
     posX,
@@ -9,7 +8,8 @@ module Ball
     move,
     collide,
     bat,
-    bounce
+    bounce,
+    out
     ) where
 
 import Data.List ( partition )
@@ -27,7 +27,7 @@ data Mode = Bound
           | Free
 
 instance Default Ball where
-    def = Ball { pos = Vec2 50 350, vel = Vec2 0 4 }
+    def = Ball { pos = Vec2 50 350, vel = Vec2 0 (-4) }
 
 size :: Num a => (a, a)
 size = (5, 5)
@@ -116,4 +116,13 @@ hitBrick ball brick =
     && ( ball `penetrated` Br.left brick )
     && ( ball `penetrated` Br.bottom brick )
     && ( ball `penetrated` Br.right brick )
+
+
+out :: Ball -> Pl.Plane -> Mode -> Mode
+out ball plane mode = 
+    if ( relBallPos `dotprod` Pl.normal plane ) < 0
+    then Bound
+    else mode
+  where
+    relBallPos = pos ball - Pl.pos plane
 
