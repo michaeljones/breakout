@@ -33,5 +33,5 @@ executable breakout
                  , data-default == 0.5.3
                  , vect == 0.4.7
                  , breakout
-    ghc-options: -Wall -Werror
+    ghc-options: -Wall -Werror -rtsopts -auto-all -caf-all -fforce-recomp
 
