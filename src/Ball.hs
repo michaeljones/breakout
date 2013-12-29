@@ -104,11 +104,13 @@ hit ball paddle =
     && ( ball `penetrated` Pd.bottom paddle )
     && ( ball `penetrated` Pd.right paddle )
 
-bounce :: [Br.Brick] -> Ball -> (Ball, [Br.Brick])
-bounce bricks ball = 
-    case partition (ball `hitBrick`) bricks of
-        ([],bs) -> (ball, bs)
-        ((br:_),bs) -> (speedUp 1.01 . reflect ball $ Br.bottom br, bs)
+bounce :: Br.BrickState -> Ball -> (Ball, Br.BrickState)
+bounce brickState ball =
+    let bricks = Br.current brickState
+        dying = Br.dying brickState
+    in  case partition (ball `hitBrick`) bricks of
+            ([],bs) -> (ball, brickState)
+            (brs@(br:_),bs) -> (speedUp 1.01 . reflect ball $ Br.bottom br, brickState { Br.current=bs, Br.dying=dying ++ brs })
 
 speedUp :: Float -> Ball -> Ball
 speedUp frac ball@Ball { vel=vel' } = ball { vel=frac `scalarMul` vel' }
@@ -119,7 +121,6 @@ hitBrick ball brick =
     && ( ball `penetrated` Br.left brick )
     && ( ball `penetrated` Br.bottom brick )
     && ( ball `penetrated` Br.right brick )
-
 
 out :: Ball -> Pl.Plane -> Mode -> Mode
 out ball plane mode = 

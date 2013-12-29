@@ -55,7 +55,7 @@ data AppData = AppData {
     paddle :: Paddle,
     ball :: Ba.Ball,
     ballMode :: Ba.Mode,
-    bricks :: [Br.Brick],
+    bricks :: Br.BrickState,
     fps :: Timer
 }
 
@@ -84,7 +84,7 @@ getBall = liftM ball get
 getBallMode :: MonadState AppData m => m Ba.Mode
 getBallMode = liftM ballMode get
 
-getBricks :: MonadState AppData m => m [Br.Brick]
+getBricks :: MonadState AppData m => m Br.BrickState
 getBricks = liftM bricks get
 
 putPaddle :: MonadState AppData m => Paddle -> m ()
@@ -96,7 +96,7 @@ putBall t = modify $ \s -> s { ball = t }
 putBallMode :: MonadState AppData m => Ba.Mode -> m ()
 putBallMode t = modify $ \s -> s { ballMode = t }
 
-putBricks :: MonadState AppData m => [Br.Brick] -> m ()
+putBricks :: MonadState AppData m => Br.BrickState -> m ()
 putBricks t = modify $ \s -> s { bricks = t }
 
 modifyPaddle :: MonadState AppData m => (Paddle -> Paddle) -> m ()
@@ -108,7 +108,7 @@ modifyBall fn = fn `liftM` getBall >>= putBall
 modifyBallMode :: MonadState AppData m => (Ba.Mode -> Ba.Mode) -> m ()
 modifyBallMode fn = fn `liftM` getBallMode >>= putBallMode
 
-modifyBricks :: MonadState AppData m => ([Br.Brick] -> [Br.Brick]) -> m ()
+modifyBricks :: MonadState AppData m => (Br.BrickState -> Br.BrickState) -> m ()
 modifyBricks fn = fn `liftM` getBricks >>= putBricks
 
 getScreen :: MonadReader AppConfig m => m Sdl.Surface
@@ -138,37 +138,48 @@ initEnv = do
         columns = 8
         bricks_ = concat $ flip map [1..rows] $ (\n -> map (createBrick n) [1..columns])
 
-    return (AppConfig screen_, AppData { paddle=def, ball=def, ballMode=Ba.Bound, bricks=bricks_, fps=fps_ })
+        appData = AppData {
+            paddle=def,
+            ball=def,
+            ballMode=Ba.Bound,
+            bricks=Br.BrickState { current=bricks_, dying=[] },
+            fps=fps_ }
+
+    return (AppConfig screen_, appData)
 
   where
 
     createBrick y n = Br.Brick (Vec2 (20 + 60 * n) (50 + 20 * y)) (Vec2 50 10)
 
-showBricks :: [Br.Brick] -> IO ()
-showBricks bs = forM_ bs $ \b -> do
+showBricks :: Br.BrickState -> IO ()
+showBricks bs = do
+    forM_ (Br.current bs) $ render (Gl.Color4 (1 :: Gl.GLfloat) 1 1 1)
+    forM_ (Br.dying bs) $ render (Gl.Color4 (0.5 :: Gl.GLfloat) 0.5 0.5 1)
+  where
+    render colour brick = do
 
-    let x = Br.posX b
-        y = Br.posY b
-        sx = Br.sizeX b
-        sy = Br.sizeY b
+        let x = Br.posX brick
+            y = Br.posY brick
+            sx = Br.sizeX brick
+            sy = Br.sizeY brick
 
-    -- Move to offset
-    -- Gl.translate $ Gl.Vector3 (x :: Gl.GLfloat) y 0
-    Gl.translate $ Gl.Vector3 (realToFrac x :: Gl.GLfloat) (realToFrac y) 0
+        -- Move to offset
+        -- Gl.translate $ Gl.Vector3 (x :: Gl.GLfloat) y 0
+        Gl.translate $ Gl.Vector3 (realToFrac x :: Gl.GLfloat) (realToFrac y) 0
 
-    -- Start ball
-    Gl.renderPrimitive Gl.Quads $ do
+        -- Start ball
+        Gl.renderPrimitive Gl.Quads $ do
 
-        -- Set color to white
-        Gl.color $ Gl.Color4 (1 :: Gl.GLfloat) 1 1 1
+            -- Set color to white
+            Gl.color colour
 
-        -- Draw paddle
-        Gl.vertex $ Gl.Vertex3 (0 :: Gl.GLfloat) 0 0
-        Gl.vertex $ Gl.Vertex3 (realToFrac sx :: Gl.GLfloat) 0 0
-        Gl.vertex $ Gl.Vertex3 (realToFrac sx :: Gl.GLfloat) (realToFrac sy) 0
-        Gl.vertex $ Gl.Vertex3 (0 :: Gl.GLfloat) (realToFrac sy) 0
+            -- Draw paddle
+            Gl.vertex $ Gl.Vertex3 (0 :: Gl.GLfloat) 0 0
+            Gl.vertex $ Gl.Vertex3 (realToFrac sx :: Gl.GLfloat) 0 0
+            Gl.vertex $ Gl.Vertex3 (realToFrac sx :: Gl.GLfloat) (realToFrac sy) 0
+            Gl.vertex $ Gl.Vertex3 (0 :: Gl.GLfloat) (realToFrac sy) 0
 
-    Gl.loadIdentity
+        Gl.loadIdentity
 
 
 showBall :: Ba.Ball -> IO ()
@@ -244,13 +255,13 @@ loop = do
     modifyBall $ Ba.bat paddle'
 
     ball''  <- getBall
-    bricks_ <- getBricks
+    brickState <- getBricks
 
     -- Collide with bricks
-    let (ball''', bricks') = Ba.bounce bricks_ ball''
+    let (ball''', brickState') = Ba.bounce brickState ball''
 
     modifyBall $ const ball'''
-    modifyBricks $ const bricks'
+    modifyBricks $ const brickState'
 
     liftIO $ do
         Gl.clear [Gl.ColorBuffer]
@@ -259,7 +270,7 @@ loop = do
 
         showBall ball'''
 
-        showBricks bricks'
+        showBricks brickState'
 
         Sdl.glSwapBuffers
 
