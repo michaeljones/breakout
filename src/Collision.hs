@@ -2,7 +2,8 @@ module Collision (
     Collision(..),
     MovingRect(..),
     Rect(..),
-    Line(..),
+    Ray(..),
+    Side(..),
     collide,
     intersect
     ) where
@@ -26,17 +27,23 @@ data Rect = Rect {
     d :: Vec2
 }
 
-data Line = Line {
-    start :: Vec2,
-    vector :: Vec2
+data Side = Side {
+    sideStart :: Vec2,
+    sideVector :: Vec2,
+    sideNormal :: Vec2
 }
 
-sides :: Rect -> [Line]
+data Ray = Ray {
+    rayStart :: Vec2,
+    rayVector :: Vec2
+}
+
+sides :: Rect -> [Side]
 sides rect = [
-    Line { start=a rect, vector=(b rect - a rect) },
-    Line { start=b rect, vector=(c rect - b rect) },
-    Line { start=c rect, vector=(d rect - c rect) },
-    Line { start=d rect, vector=(a rect - d rect) }
+    Side { sideStart=a rect, sideVector=(b rect - a rect), sideNormal=(Vec2 (-1) 0) },
+    Side { sideStart=b rect, sideVector=(c rect - b rect), sideNormal=(Vec2 0 (-1)) },
+    Side { sideStart=c rect, sideVector=(d rect - c rect), sideNormal=(Vec2 1 0) },
+    Side { sideStart=d rect, sideVector=(a rect - d rect), sideNormal=(Vec2 0 1) }
     ]
 
 data MovingRect = MovingRect {
@@ -81,26 +88,26 @@ collideRects mrA mrB =
         _ -> Just $ minimumBy orderCollisions intersections
   where
     dir = (vel mrB - vel mrA)  -- relative velocity
-    velocityLine = Line { start=Vec2 0 0, vector=dir }
+    ray = Ray { rayStart=Vec2 0 0, rayVector=dir }
     diff = rectRectDifference (rect mrA) (rect mrB)
     sides' = sides diff
-    intersections = foldr (intersect velocityLine) [] sides'
+    intersections = foldr (intersect ray) [] sides'
 
 
-{- Line-line intersection test. Approach from:
+{- Line-line (ray-to-side) intersection test. Approach from:
 
      http://stackoverflow.com/questions/563198
    -}
-intersect :: Line -> Line -> [Collision] -> [Collision]
-intersect vel side col =
+intersect :: Ray -> Side -> [Collision] -> [Collision]
+intersect ray side col =
     if ( t > 0.0 && t < 1.0 ) && ( u > 0.0 && u < 1.0 )
     then Collision { time=t, pos=Vec2 0 0, normal=Vec2 1 0, brick=dummyBrick } : col
     else col
   where
-    p = start vel
-    r = vector vel
-    q = start side
-    s = vector side
+    p = rayStart ray
+    r = rayVector ray
+    q = sideStart side
+    s = sideVector side
     t = ((q - p) `cross` s) / (r `cross` s)
     u = ((q - p) `cross` r) / (r `cross` s)
     cross a b = ( _1 a * _2 b ) - ( _2 a * _1 b )
