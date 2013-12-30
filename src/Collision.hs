@@ -2,7 +2,9 @@ module Collision (
     Collision(..),
     MovingRect(..),
     Rect(..),
-    collide
+    Line(..),
+    collide,
+    intersect
     ) where
 
 import Data.Vect.Float ( Vec2(..), _1, _2 )
@@ -47,7 +49,7 @@ data Collision = Collision {
     pos :: Vec2,
     normal :: Vec2,
     brick :: Br.Brick
-}
+} deriving (Eq, Show)
 
 orderCollisions :: Collision -> Collision -> Ordering
 orderCollisions c1 c2 = time c1 `compare` time c2
@@ -92,16 +94,17 @@ collideRects mrA mrB =
 intersect :: Line -> Line -> [Collision] -> [Collision]
 intersect vel side col =
     if ( t > 0.0 && t < 1.0 ) && ( u > 0.0 && u < 1.0 )
-    then Collision { time=t, pos=Vec2 0 0, normal=Vec2 1 0, brick=Br.Brick { Br.pos=Vec2 0 0, Br.size=Vec2 1 1 } } : col
+    then Collision { time=t, pos=Vec2 0 0, normal=Vec2 1 0, brick=dummyBrick } : col
     else col
   where
     p = start vel
     r = vector vel
     q = start side
-    s = vector vel
+    s = vector side
     t = ((q - p) `cross` s) / (r `cross` s)
     u = ((q - p) `cross` r) / (r `cross` s)
     cross a b = ( _1 a * _2 b ) - ( _2 a * _1 b )
+    dummyBrick = Br.Brick { Br.pos=Vec2 0 0, Br.size=Vec2 1 1 }
 
 {- Calculates the Minkowski Difference, A-B, of two rectangles -}
 rectRectDifference :: Rect -> Rect -> Rect

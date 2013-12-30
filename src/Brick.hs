@@ -12,7 +12,7 @@ import Data.Vect.Float ( Vec2(..), _1, _2 )
 
 import qualified Plane as Pl
 
-data Brick = Brick { pos :: Vec2, size :: Vec2 }
+data Brick = Brick { pos :: Vec2, size :: Vec2 } deriving (Eq, Show)
 
 data BrickState = BrickState {
     current :: [Brick],

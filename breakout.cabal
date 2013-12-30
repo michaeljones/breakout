@@ -36,3 +36,13 @@ executable breakout
                  , breakout
     ghc-options: -Wall -Werror -rtsopts -auto-all -caf-all -fforce-recomp
 
+
+test-suite test
+    type:       exitcode-stdio-1.0
+    main-is:    src/test.hs
+    build-depends: base
+                 , tasty
+                 , tasty-hunit
+                 , vect == 0.4.7
+                 , breakout
+
