@@ -20,6 +20,7 @@ import Data.Vect.Float.Instances () -- For Num Vec2
 import qualified Plane as Pl
 import qualified Paddle as Pd
 import qualified Brick as Br
+import qualified Collision as Co
 
 data Ball = Ball { pos :: Vec2, vel :: Vec2 }
 
@@ -104,13 +105,14 @@ hit ball paddle =
     && ( ball `penetrated` Pd.bottom paddle )
     && ( ball `penetrated` Pd.right paddle )
 
+{- Interaction between the bricks and the ball -}
 bounce :: Br.BrickState -> Ball -> (Ball, Br.BrickState)
 bounce brickState ball =
     let bricks = Br.current brickState
         dying = Br.dying brickState
-    in  case partition (ball `hitBrick`) bricks of
-            ([],bs) -> (ball, brickState)
-            (brs@(br:_),bs) -> (speedUp 1.01 . reflect ball $ Br.bottom br, brickState { Br.current=bs, Br.dying=dying ++ brs })
+    in  case Co.collide (ballToMovingRect ball) bricks of
+            ([],_) -> (ball, brickState)
+            (col:_, bricks') -> (ball, brickState { Br.current=bricks', Br.dying=Co.brick col : dying })
 
 speedUp :: Float -> Ball -> Ball
 speedUp frac ball@Ball { vel=vel' } = ball { vel=frac `scalarMul` vel' }
@@ -130,3 +132,15 @@ out ball plane mode =
   where
     relBallPos = pos ball - Pl.pos plane
 
+
+ballToMovingRect :: Ball -> Co.MovingRect
+ballToMovingRect Ball { pos=pos', vel=vel' } =
+    Co.MovingRect {
+        Co.rect = Co.Rect {
+            Co.a = (pos' + Vec2 0 sizeY),
+            Co.b = pos',
+            Co.c = (pos' + Vec2 sizeX 0),
+            Co.d = (pos' + Vec2 sizeX sizeY )
+        },
+        Co.vel = vel'
+    }
