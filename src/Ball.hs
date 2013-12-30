@@ -125,13 +125,6 @@ bounce brickState ball =
 speedUp :: Float -> Ball -> Ball
 speedUp frac ball@Ball { vel=vel' } = ball { vel=frac `scalarMul` vel' }
 
-hitBrick :: Ball -> Br.Brick -> Bool
-hitBrick ball brick =
-    ( ball `penetrated` Br.top brick )
-    && ( ball `penetrated` Br.left brick )
-    && ( ball `penetrated` Br.bottom brick )
-    && ( ball `penetrated` Br.right brick )
-
 out :: Ball -> Pl.Plane -> Mode -> Mode
 out ball plane mode = 
     if ( relBallPos `dotprod` Pl.normal plane ) < 0
