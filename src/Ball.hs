@@ -105,14 +105,22 @@ hit ball paddle =
     && ( ball `penetrated` Pd.bottom paddle )
     && ( ball `penetrated` Pd.right paddle )
 
+
 {- Interaction between the bricks and the ball -}
 bounce :: Br.BrickState -> Ball -> (Ball, Br.BrickState)
 bounce brickState ball =
-    let bricks = Br.current brickState
-        dying = Br.dying brickState
-    in  case Co.collide (ballToMovingRect ball) bricks of
-            ([],_) -> (ball, brickState)
-            (col:_, bricks') -> (ball, brickState { Br.current=bricks', Br.dying=Co.brick col : dying })
+    case Co.collide (ballToMovingRect ball) bricks of
+        ([],_) -> (ball, brickState)
+        (col:_, bricks') -> (bounce' ball col, brickState { Br.current=bricks', Br.dying=Co.brick col : dying })
+  where
+    bricks = Br.current brickState
+    dying = Br.dying brickState
+    bounce' ball col = ball { pos=(pos ball + (Co.time col `scalarMul` vel ball)), vel=vel' }
+      where
+        normal = Co.normal col
+        normalFraction = (vel ball) `dotprod` normal
+        vel' = (vel ball) - ((2 * normalFraction) `scalarMul` normal)
+
 
 speedUp :: Float -> Ball -> Ball
 speedUp frac ball@Ball { vel=vel' } = ball { vel=frac `scalarMul` vel' }

@@ -8,7 +8,7 @@ module Collision (
     intersect
     ) where
 
-import Data.Vect.Float ( Vec2(..), _1, _2 )
+import Data.Vect.Float ( Vec2(..), _1, _2, scalarMul )
 import Data.Vect.Float.Instances () -- For Num Vec2
 import Data.List ( sortBy, minimumBy )
 
@@ -101,7 +101,7 @@ collideRects mrA mrB =
 intersect :: Ray -> Side -> [Collision] -> [Collision]
 intersect ray side col =
     if ( t > 0.0 && t < 1.0 ) && ( u > 0.0 && u < 1.0 )
-    then Collision { time=t, pos=Vec2 0 0, normal=Vec2 1 0, brick=dummyBrick } : col
+    then Collision { time=t, pos=(p + (t `scalarMul` r)), normal=sideNormal side, brick=dummyBrick } : col
     else col
   where
     p = rayStart ray
