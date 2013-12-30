@@ -111,7 +111,13 @@ bounce :: Br.BrickState -> Ball -> (Ball, Br.BrickState)
 bounce brickState ball =
     case Co.collide (ballToMovingRect ball) bricks of
         ([],_) -> (ball, brickState)
-        (col:_, bricks') -> (bounce' ball col, brickState { Br.current=bricks', Br.dying=Co.brick col : dying })
+        (col:_, bricks') -> (ball', brickState')
+          where
+            ball' = bounce' ball col
+            brickState' = brickState {
+                Br.current=bricks',
+                Br.dying=Br.DeadBrick { Br.brick=(Co.brick col), Br.fraction=1.0 } : dying
+                }
   where
     bricks = Br.current brickState
     dying = Br.dying brickState

@@ -153,9 +153,11 @@ initEnv = do
 
 showBricks :: Br.BrickState -> IO ()
 showBricks bs = do
+    -- Render dead bricks first so that they are under the active ones
+    forM_ (Br.dying bs) $ renderDead
     forM_ (Br.current bs) $ render (Gl.Color4 (1 :: Gl.GLfloat) 1 1 1)
-    forM_ (Br.dying bs) $ render (Gl.Color4 (0.5 :: Gl.GLfloat) 0.5 0.5 1)
   where
+    renderDead db = let c = realToFrac $ Br.fraction db in render (Gl.Color4 (c :: Gl.GLfloat) c c 1) $ Br.brick db
     render colour brick = do
 
         let x = Br.posX brick
@@ -259,18 +261,20 @@ loop = do
 
     -- Collide with bricks
     let (ball''', brickState') = Ba.bounce brickState ball''
+        brickState'' = Br.deathSequence brickState'
 
     modifyBall $ const ball'''
-    modifyBricks $ const brickState'
+    modifyBricks $ const brickState''
 
     liftIO $ do
         Gl.clear [Gl.ColorBuffer]
 
         showPaddle paddle'
 
-        showBall ball'''
-
         showBricks brickState'
+
+        -- Draw ball after bricks so that it appears on top of dead ones
+        showBall ball'''
 
         Sdl.glSwapBuffers
 
