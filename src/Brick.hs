@@ -1,11 +1,11 @@
 module Brick
     (
     Brick(..),
+    DeadBrick(..),
     BrickState(..),
+    deathSequence,
     posX, posY,
-    sizeX, sizeY,
-    top, bottom,
-    left, right,
+    sizeX, sizeY
     ) where
 
 import Data.Vect.Float ( Vec2(..), _1, _2 )
@@ -14,9 +14,14 @@ import qualified Plane as Pl
 
 data Brick = Brick { pos :: Vec2, size :: Vec2 } deriving (Eq, Show)
 
+data DeadBrick = DeadBrick {
+    brick :: Brick,
+    fraction :: !Float
+}
+
 data BrickState = BrickState {
     current :: [Brick],
-    dying :: [Brick]
+    dying :: [DeadBrick]
 }
 
 posX :: Brick -> Float
@@ -29,19 +34,18 @@ sizeX b = _1 . size $ b
 sizeY :: Brick -> Float
 sizeY b = _2 . size $ b
 
--- | Return plane for the top of the paddle
-top :: Brick -> Pl.Plane
-top brick = Pl.Plane (pos brick) $ Vec2 0 (-1)
+deathSequence :: BrickState -> BrickState
+deathSequence brickState = brickState { dying=dying'' }
+  where
+    dying' = dying brickState
+    dying'' = map animate $ filter cull dying' 
+    cull db = fraction db > 0
 
--- | Return plane for the bottom of the paddle
-bottom :: Brick -> Pl.Plane
-bottom brick = Pl.Plane (pos brick + (Vec2 0 $ sizeY brick)) $ Vec2 0 1
+animate :: DeadBrick -> DeadBrick
+animate db = db { brick=brick' { pos=pos' + Vec2 0 3 }, fraction=fraction' - 0.05 }
+  where
+    brick' = brick db
+    pos' = pos brick'
+    fraction' = fraction db
 
--- | Return plane for the left side of the paddle
-left :: Brick -> Pl.Plane
-left brick = Pl.Plane (pos brick) $ Vec2 (-1) 0
-
--- | Return plane for the right side of the paddle
-right :: Brick -> Pl.Plane
-right brick = Pl.Plane (pos brick + (Vec2 (sizeX brick) 0)) $ Vec2 1 0
 

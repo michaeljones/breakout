@@ -111,7 +111,13 @@ bounce :: Br.BrickState -> Ball -> (Ball, Br.BrickState)
 bounce brickState ball =
     case Co.collide (ballToMovingRect ball) bricks of
         ([],_) -> (ball, brickState)
-        (col:_, bricks') -> (bounce' ball col, brickState { Br.current=bricks', Br.dying=Co.brick col : dying })
+        (col:_, bricks') -> (ball', brickState')
+          where
+            ball' = bounce' ball col
+            brickState' = brickState {
+                Br.current=bricks',
+                Br.dying=Br.DeadBrick { Br.brick=(Co.brick col), Br.fraction=1.0 } : dying
+                }
   where
     bricks = Br.current brickState
     dying = Br.dying brickState
@@ -124,13 +130,6 @@ bounce brickState ball =
 
 speedUp :: Float -> Ball -> Ball
 speedUp frac ball@Ball { vel=vel' } = ball { vel=frac `scalarMul` vel' }
-
-hitBrick :: Ball -> Br.Brick -> Bool
-hitBrick ball brick =
-    ( ball `penetrated` Br.top brick )
-    && ( ball `penetrated` Br.left brick )
-    && ( ball `penetrated` Br.bottom brick )
-    && ( ball `penetrated` Br.right brick )
 
 out :: Ball -> Pl.Plane -> Mode -> Mode
 out ball plane mode = 
