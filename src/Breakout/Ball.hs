@@ -1,4 +1,4 @@
-module Ball (
+module Breakout.Ball (
     Ball(..),
     Mode(..),
     posX,
@@ -17,10 +17,10 @@ import Data.Default ( Default, def )
 import Data.Vect.Float ( Vec2(..), dotprod, scalarMul, _1, len, normalize )
 import Data.Vect.Float.Instances () -- For Num Vec2
 
-import qualified Plane as Pl
-import qualified Paddle as Pd
-import qualified Brick as Br
-import qualified Collision as Co
+import qualified Breakout.Plane as Pl
+import qualified Breakout.Paddle as Pd
+import qualified Breakout.Brick as Br
+import qualified Breakout.Collision as Co
 
 data Mode = Bound
           | Free

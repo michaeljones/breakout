@@ -1,4 +1,4 @@
-module Paddle
+module Breakout.Paddle
     (
     Paddle(..),
     sizeX,
@@ -14,7 +14,7 @@ import Data.Vect.Float ( Vec2(..) )
 import Data.Vect.Float.Instances () -- For Num Vec2
 import Data.Default ( Default, def )
 
-import qualified Plane as Pl
+import qualified Breakout.Plane as Pl
 
 data Paddle = Paddle { pos :: Vec2, vel :: Vec2 }
 

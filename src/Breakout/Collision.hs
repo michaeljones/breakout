@@ -1,4 +1,4 @@
-module Collision (
+module Breakout.Collision (
     Collision(..),
     MovingRect(..),
     Rect(..),
@@ -12,7 +12,7 @@ import Data.Vect.Float ( Vec2(..), _1, _2, scalarMul )
 import Data.Vect.Float.Instances () -- For Num Vec2
 import Data.List ( sortBy, minimumBy )
 
-import qualified Brick as Br
+import qualified Breakout.Brick as Br
 
 {- Rectangle with layout:
 

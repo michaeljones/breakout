@@ -15,12 +15,12 @@ import           Graphics.UI.SDL ( Event(..), Keysym(..), SDLKey(..) )
 import qualified Graphics.Rendering.OpenGL as Gl
 import           Graphics.Rendering.OpenGL ( ($=) )
 
-import qualified Brick as Br
-import qualified Ball as Ba
-import qualified Paddle as Pd
-import           Paddle ( Paddle(..) )
-import           Plane ( fromTuples )
-import           Timer ( Timer, start, defaultTimer, getTimerTicks )
+import qualified Breakout.Brick as Br
+import qualified Breakout.Ball as Ba
+import qualified Breakout.Paddle as Pd
+import           Breakout.Paddle ( Paddle(..) )
+import           Breakout.Plane ( fromTuples )
+import           Breakout.Timer ( Timer, start, defaultTimer, getTimerTicks )
 
 import Data.Vect.Float ( Vec2(..) )
 import Data.Vect.Float.Instances () -- For Num Vec2

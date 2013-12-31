@@ -1,5 +1,5 @@
 
-module Timer (
+module Breakout.Timer (
     Timer(), defaultTimer,
     start,
     stop,

@@ -1,4 +1,4 @@
-module Plane
+module Breakout.Plane
     (
     Plane(..),
     fromTuples

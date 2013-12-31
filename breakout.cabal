@@ -5,12 +5,12 @@ cabal-version:   >= 1.8
 build-type:      Simple
 
 library
-  exposed-modules: Ball
-                 , Brick
-                 , Paddle
-                 , Plane
-                 , Timer
-                 , Collision
+  exposed-modules: Breakout.Ball
+                 , Breakout.Brick
+                 , Breakout.Paddle
+                 , Breakout.Plane
+                 , Breakout.Timer
+                 , Breakout.Collision
   hs-source-dirs: src
   build-depends: base >= 4 && < 5
                , SDL == 0.6.5

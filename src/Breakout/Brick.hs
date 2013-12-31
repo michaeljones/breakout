@@ -1,4 +1,4 @@
-module Brick
+module Breakout.Brick
     (
     Brick(..),
     DeadBrick(..),
@@ -10,7 +10,7 @@ module Brick
 
 import Data.Vect.Float ( Vec2(..), _1, _2 )
 
-import qualified Plane as Pl
+import qualified Breakout.Plane as Pl
 
 data Brick = Brick { pos :: Vec2, size :: Vec2 } deriving (Eq, Show)
 

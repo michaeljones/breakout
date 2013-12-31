@@ -5,11 +5,11 @@ import Test.Tasty.HUnit ( testCase, (@?=) )
 
 import Data.Vect.Float ( Vec2(..), _1, _2 )
 
-import qualified Collision as Co
-import Collision ( Ray(..), Side(..), Collision(..), intersect )
+import qualified Breakout.Collision as Co
+import           Breakout.Collision ( Ray(..), Side(..), Collision(..), intersect )
 
-import qualified Brick as Br
-import Brick ( Brick )
+import qualified Breakout.Brick as Br
+import           Breakout.Brick ( Brick )
 
 main = defaultMain tests
 
