@@ -1,5 +1,5 @@
 module Ball (
-    Ball,
+    Ball(..),
     Mode(..),
     posX,
     posY,
@@ -22,13 +22,14 @@ import qualified Paddle as Pd
 import qualified Brick as Br
 import qualified Collision as Co
 
-data Ball = Ball { pos :: Vec2, vel :: Vec2 }
-
 data Mode = Bound
           | Free
+          deriving Eq
+
+data Ball = Ball { pos :: Vec2, vel :: Vec2, mode :: Mode }
 
 instance Default Ball where
-    def = Ball { pos = Vec2 50 350, vel = Vec2 0 (-4) }
+    def = Ball { pos = Vec2 50 350, vel = Vec2 0 (-4), mode=Bound }
 
 size :: Num a => (a, a)
 size = (5, 5)
@@ -44,9 +45,10 @@ posY :: Ball -> Float
 posY Ball { pos=Vec2 _ y } = y
 
 {- Handle free & bound motion of the Ball -}
-move :: Mode -> Pd.Paddle -> Ball -> Ball
-move Free _ ball@Ball { pos=p, vel=v } = ball { pos=p + v }
-move Bound paddle ball = ball { pos=(Pd.pos paddle + (Vec2 (0.5 * Pd.sizeX) (-10))) }
+move :: Pd.Paddle -> Ball -> Ball
+move _ ball@Ball { pos=p, vel=v, mode=m } | m == Free = ball { pos=p + v }
+move paddle ball =
+    ball { pos=(Pd.pos paddle + (Vec2 (0.5 * Pd.sizeX) (-10))) }
 
 {- For collision detection between planes and the ball. Particularly useful for
    the screen edges -}
@@ -127,18 +129,16 @@ bounce brickState ball =
         normalFraction = (vel ball) `dotprod` normal
         vel' = (vel ball) - ((2 * normalFraction) `scalarMul` normal)
 
-
 speedUp :: Float -> Ball -> Ball
 speedUp frac ball@Ball { vel=vel' } = ball { vel=frac `scalarMul` vel' }
 
-out :: Ball -> Pl.Plane -> Mode -> Mode
-out ball plane mode = 
+out :: Pl.Plane -> Ball -> Ball
+out plane ball = 
     if ( relBallPos `dotprod` Pl.normal plane ) < 0
-    then Bound
-    else mode
+    then ball { mode = Bound }
+    else ball
   where
     relBallPos = pos ball - Pl.pos plane
-
 
 ballToMovingRect :: Ball -> Co.MovingRect
 ballToMovingRect Ball { pos=pos', vel=vel' } =

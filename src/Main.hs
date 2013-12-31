@@ -54,7 +54,6 @@ handleInput _ d = d
 data AppData = AppData {
     paddle :: Paddle,
     ball :: Ba.Ball,
-    ballMode :: Ba.Mode,
     bricks :: Br.BrickState,
     fps :: Timer
 }
@@ -81,9 +80,6 @@ getPaddle = liftM paddle get
 getBall :: MonadState AppData m => m Ba.Ball
 getBall = liftM ball get
 
-getBallMode :: MonadState AppData m => m Ba.Mode
-getBallMode = liftM ballMode get
-
 getBricks :: MonadState AppData m => m Br.BrickState
 getBricks = liftM bricks get
 
@@ -93,9 +89,6 @@ putPaddle t = modify $ \s -> s { paddle = t }
 putBall :: MonadState AppData m => Ba.Ball -> m ()
 putBall t = modify $ \s -> s { ball = t }
 
-putBallMode :: MonadState AppData m => Ba.Mode -> m ()
-putBallMode t = modify $ \s -> s { ballMode = t }
-
 putBricks :: MonadState AppData m => Br.BrickState -> m ()
 putBricks t = modify $ \s -> s { bricks = t }
 
@@ -104,9 +97,6 @@ modifyPaddle fn = fn `liftM` getPaddle >>= putPaddle
 
 modifyBall :: MonadState AppData m => (Ba.Ball -> Ba.Ball) -> m ()
 modifyBall fn = fn `liftM` getBall >>= putBall
-
-modifyBallMode :: MonadState AppData m => (Ba.Mode -> Ba.Mode) -> m ()
-modifyBallMode fn = fn `liftM` getBallMode >>= putBallMode
 
 modifyBricks :: MonadState AppData m => (Br.BrickState -> Br.BrickState) -> m ()
 modifyBricks fn = fn `liftM` getBricks >>= putBricks
@@ -141,7 +131,6 @@ initEnv = do
         appData = AppData {
             paddle=def,
             ball=def,
-            ballMode=Ba.Bound,
             bricks=Br.BrickState { current=bricks_, dying=[] },
             fps=fps_ }
 
@@ -232,19 +221,17 @@ loop :: AppEnv ()
 loop = do
 
     modifyFPSM $ liftIO . start
-    quit_ <- whileEvents (modifyPaddle . handleInput) (modifyBallMode . handleTrigger)
+    quit_ <- whileEvents (modifyPaddle . handleInput) (modifyBall . handleTrigger)
 
     -- Check if the ball is out of bounds
-    ball' <- getBall
-    modifyBallMode $ Ba.out ball' $ fromTuples (20,fromIntegral screenHeight - 20) (0,-1)
+    modifyBall $ Ba.out $ fromTuples (20,fromIntegral screenHeight - 20) (0,-1)
 
     -- Update the paddle based on user movement
     modifyPaddle $ Pd.move screenWidth screenHeight
     paddle' <- getPaddle
 
     -- Move the ball either by its velocity or to stick with the paddle
-    mode' <- getBallMode
-    modifyBall $ Ba.move mode' paddle'
+    modifyBall $ Ba.move paddle'
 
     -- Collide with walls
     modifyBall $ Ba.collide $ fromTuples (20,20) (1,0)
@@ -256,14 +243,14 @@ loop = do
     -- Collide with paddle
     modifyBall $ Ba.bat paddle'
 
-    ball''  <- getBall
+    ball'  <- getBall
     brickState <- getBricks
 
     -- Collide with bricks
-    let (ball''', brickState') = Ba.bounce brickState ball''
+    let (ball'', brickState') = Ba.bounce brickState ball'
         brickState'' = Br.deathSequence brickState'
 
-    modifyBall $ const ball'''
+    modifyBall $ const ball''
     modifyBricks $ const brickState''
 
     liftIO $ do
@@ -274,7 +261,7 @@ loop = do
         showBricks brickState'
 
         -- Draw ball after bricks so that it appears on top of dead ones
-        showBall ball'''
+        showBall ball''
 
         Sdl.glSwapBuffers
 
@@ -300,9 +287,11 @@ whileEvents movement trigger = do
             trigger event
             whileEvents movement trigger
 
-handleTrigger :: Event -> Ba.Mode -> Ba.Mode
-handleTrigger (KeyDown (Keysym SDLK_SPACE _ _)) _ = Ba.Free
-handleTrigger _ mode = mode
+{- Handle Space bar to free ball from the paddle. Reset ball velocity to
+   default on release -}
+handleTrigger :: Event -> Ba.Ball -> Ba.Ball
+handleTrigger (KeyDown (Keysym SDLK_SPACE _ _)) ba = ba { Ba.mode=Ba.Free, Ba.vel=Ba.vel def }
+handleTrigger _ ba = ba
 
 -- Event handler for 'q' to quit application
 handleQuit :: MonadIO m => Event -> m Bool
