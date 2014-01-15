@@ -21,28 +21,22 @@ import qualified Breakout.Plane as Pl
 import qualified Breakout.Paddle as Pd
 import qualified Breakout.Brick as Br
 import qualified Breakout.Collision as Co
+import           Breakout.Types ( HasPos, HasSize )
 
 data Mode = Bound
           | Free
           deriving Eq
 
-data Ball = Ball { pos :: Vec2, vel :: Vec2, mode :: Mode }
+data Ball = Ball { _pos :: Vec2, vel :: Vec2, mode :: Mode }
 
 instance Default Ball where
-    def = Ball { pos = Vec2 50 350, vel = Vec2 0 (-4), mode=Bound }
+    def = Ball { _pos = Vec2 50 350, vel = Vec2 0 (-4), mode=Bound }
 
-size :: Num a => (a, a)
-size = (5, 5)
-sizeX :: Num a => a
-sizeX = fst size
-sizeY :: Num a => a
-sizeY = snd size
+instance HasPos Ball where
+    pos = _pos
 
-posX :: Ball -> Float
-posX Ball { pos=Vec2 x _ } = x
-
-posY :: Ball -> Float
-posY Ball { pos=Vec2 _ y } = y
+instance HasSize Ball where
+    size = Vec2 5 5
 
 {- Handle free & bound motion of the Ball -}
 move :: Pd.Paddle -> Ball -> Ball
